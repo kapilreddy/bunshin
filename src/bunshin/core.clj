@@ -2,8 +2,9 @@
   (:require [clojure.set :as cs]
             [ketamine.core :as ketama]
             [clj-time.core :as ct]
-            [bunshin.redis :refer [redis-backend]]
-            [bunshin.backend :as bb]))
+            [bunshin.datastores.redis :refer [redis-backend]]
+            [bunshin.datastores.datastore :refer [BunshinDataStorage]]
+            [bunshin.datastores.datastore :as bdd]))
 
 
 (defn gen-ts-set-key
@@ -30,32 +31,31 @@
 (defn get-fresh-ts
   [server-with-ts-xs]
   (first (first (first (sort-by (comp - first first)
-                                server-with-ts-xs)))))
+                                (filter (comp seq first)
+                                        server-with-ts-xs))))))
 
 
 (defn fetch-ts
   [{:keys [storage-backend]}
    server
    key]
-  (when-let [ts-str-xs (bb/pipeline storage-backend
-                                 server
-                                 (fn []
-                                   (bb/get-id-xs storage-backend
-                                                 (gen-ts-set-key key))))]
+  (when-let [ts-str-xs (bdd/get-id-xs storage-backend
+                                      server
+                                      (gen-ts-set-key key))]
     [(map (fn [i]
             (Double/parseDouble i))
-          (map second (partition 2 ts-str-xs)))
+          ts-str-xs)
      server]))
 
 
 (defn fetch-ts-xs
-  [{:keys [^BunshinStorageBackend storage-backend
-           submit-to-threadpool]
+  [{:keys [^BunshinDataStorage storage-backend
+           submit-to-threadpool-fn]
     :as ctx}
    servers
    key]
   (let [fetch-ts-l (partial fetch-ts ctx)
-        results (map #(submit-to-threadpool (fn []
+        results (map #(submit-to-threadpool-fn (fn []
                                               (fetch-ts-l %
                                                           key)))
                      servers)]
@@ -64,32 +64,33 @@
 
 
 (defn set*
-  [{:keys [^BunshinStorageBackend storage-backend
-           running-set-operations]}
+  [{:keys [^BunshinDataStorage storage-backend
+           running-set-operations submit-to-threadpool-fn]}
    servers-with-ts key val ts]
   (let [val-key (gen-val-key key ts)]
     (when-not (@running-set-operations val-key)
       (swap! running-set-operations conj val-key)
       (doseq [[ts-xs server] servers-with-ts]
-        (bb/pipeline storage-backend
-                    server
-                     (fn []
-                       (bb/set storage-backend
-                               val-key
-                               val
-                               (gen-ts-set-key key)
-                               ts)
-                       (when (seq ts-xs)
-                         (bb/prune-ids storage-backend
-                                       (gen-ts-set-key key))
-                         (bb/del storage-backend
-                                 (map (partial gen-val-key key)
-                                      ts-xs))))))
+        (bdd/set storage-backend
+                 server
+                 val-key
+                 val
+                 (gen-ts-set-key key)
+                 ts)
+        (when (seq ts-xs)
+          (submit-to-threadpool-fn (fn []
+                                  (bdd/prune-ids storage-backend
+                                                 server
+                                                 (gen-ts-set-key key))
+                                  (bdd/del storage-backend
+                                           server
+                                           (map (partial gen-val-key key)
+                                                ts-xs))))))
       (swap! running-set-operations disj val-key))))
 
 
 (defn set
-  [{:keys [^BunshinStorageBackend storage-backend
+  [{:keys [^BunshinDataStorage storage-backend
            ^HashRing ring]
     :as ctx}
    key
@@ -112,10 +113,10 @@
 
 
 (defn get
-  [{:keys [^BunshinStorageBackend storage-backend
+  [{:keys [^BunshinDataStorage storage-backend
            ^HashRing ring
            load-distribution-fn
-           submit-to-threadpool]
+           submit-to-threadpool-fn]
     :as ctx}
    key
    & {:keys [replication-factor]
@@ -130,12 +131,10 @@
                                        (filter #(= fresh-ts (first (first %)))
                                                servers-with-ts))
                   fresh-data (let [server (load-distribution-fn in-sync-servers)]
-                               (bb/pipeline storage-backend
-                                            server
-                                            (fn []
-                                              (bb/get storage-backend
-                                                      (gen-val-key key fresh-ts)))))]
-              (submit-to-threadpool
+                               (bdd/get storage-backend
+                                        server
+                                        (gen-val-key key fresh-ts)))]
+              (submit-to-threadpool-fn
                (fn []
                  (let [out-of-sync-servers
                        (cs/difference (clojure.core/set servers)
@@ -152,36 +151,36 @@
 (defn del
   [{:keys [storage-backend ring] :as ctx}
    key & {:keys [replication-factor]
-        :or {replication-factor 2}}]
+          :or {replication-factor 2}}]
   (let [servers (get-servers ring key replication-factor)
         servers-with-ts (fetch-ts-xs ctx servers key)]
     (doseq [[ts-xs server] servers-with-ts]
       (when (seq ts-xs)
-        (bb/pipeline storage-backend
-                     server
-                     (fn []
-                       (bb/del storage-backend
-                               (concat (map (partial gen-val-key key)
-                                            ts-xs)
-                                       (gen-ts-set-key key)))))))))
+        (bdd/del storage-backend
+                 server
+                 (concat (map (partial gen-val-key key)
+                              ts-xs)
+                         (gen-ts-set-key key)))))))
 
 
 (defn gen-context
   ([servers-conf-list]
      (gen-context servers-conf-list
-                  redis-backend
+                  redis-backend))
+  ([servers-conf-list server-backend]
+     (gen-context servers-conf-list
+                  server-backend
                   (fn [thunk]
                     (future (thunk)))
                   (comp first shuffle)
                   (ketama/make-ring servers-conf-list)))
-  ([servers-conf-list storage-backend submit-to-threadpool
+  ([servers-conf-list storage-backend submit-to-threadpool-fn
     load-distribution-fn ring]
-     {:storage-backend redis-backend
-      :submit-to-threadpool (fn [thunk]
-                              (future (thunk)))
-      :load-distribution-fn (comp first shuffle)
+     {:storage-backend storage-backend
+      :submit-to-threadpool-fn submit-to-threadpool-fn
+      :load-distribution-fn load-distribution-fn
       :running-set-operations (atom #{})
-      :ring (ketama/make-ring servers-conf-list)}))
+      :ring ring}))
 
 
 (comment
