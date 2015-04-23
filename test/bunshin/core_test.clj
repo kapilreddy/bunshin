@@ -8,10 +8,8 @@
             [bunshin.core :as bc]))
 
 
-(deftest single-server
-  (let [ctx (bc/gen-context [{:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6379}}]
+(deftest single-server-normal
+  (let [ctx (bc/gen-context [6379]
                             (gen-in-memory-backend))]
     (is (nil? (bc/get ctx "foo")))
     (is (= (bc/set ctx "foo" "hello world" :ts 10) :ok))
@@ -20,19 +18,8 @@
     (is (= (bc/get ctx "foo") "hello new world"))))
 
 
-(deftest multi-server
-  (let [ctx (bc/gen-context [{:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6379}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6380}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6381}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6382}}]
+(deftest multi-server-normal
+  (let [ctx (bc/gen-context [6379 6380 6381 6382]
                             (gen-in-memory-backend))]
     (is (nil? (bc/get ctx "foo")))
     (is (= (bc/set ctx "foo" "hello world" :ts 10) :ok))
@@ -42,18 +29,7 @@
 
 
 (deftest multi-server-fail-scenario-1
-  (let [ctx (bc/gen-context [{:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6379}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6380}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6381}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6382}}]
+  (let [ctx (bc/gen-context [6379 6380 6381 6382]
                             (gen-in-memory-backend))
         {:keys [storage-backend ring]} ctx
         key "foo"
@@ -95,18 +71,7 @@
 
 
 (deftest multi-server-fail-scenario-2
-  (let [ctx (bc/gen-context [{:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6379}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6380}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6381}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6382}}]
+  (let [ctx (bc/gen-context [6379 6380 6381 6382]
                             (gen-in-memory-backend))
         {:keys [storage-backend ring]} ctx
         key "foo"
@@ -128,7 +93,8 @@
                      :replication-factor replication-factor)
              "hello new world")))
 
-    ;; All servers are running again
+    ;; All servers are running again except the server running
+    ;; previously
     (let [nodes (take (dec replication-factor) (ketama/node-seq ring key))]
       (doseq [node nodes]
         (start storage-backend node true))
@@ -140,18 +106,7 @@
 
 
 (deftest concurrent-writes
-  (let [ctx (bc/gen-context [{:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6379}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6380}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6381}}
-                             {:pool {}
-                              :spec {:host "127.0.0.1"
-                                     :port 6382}}]
+  (let [ctx (bc/gen-context [6379 6380 6381 6382]
                             (gen-in-memory-backend))
         {:keys [storage-backend ring]} ctx
         key "foo"
