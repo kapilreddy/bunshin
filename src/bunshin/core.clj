@@ -168,13 +168,12 @@
      (gen-context servers-conf-list
                   redis-backend))
   ([servers-conf-list server-backend]
-     (gen-context servers-conf-list
-                  server-backend
+     (gen-context server-backend
                   (fn [thunk]
                     (future (thunk)))
                   (comp first shuffle)
                   (ketama/make-ring servers-conf-list)))
-  ([servers-conf-list storage-backend submit-to-threadpool-fn
+  ([storage-backend submit-to-threadpool-fn
     load-distribution-fn ring]
      {:storage-backend storage-backend
       :submit-to-threadpool-fn submit-to-threadpool-fn
