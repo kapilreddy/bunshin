@@ -135,3 +135,37 @@
       (is (= (bc/get ctx key
                      :replication-factor replication-factor)
              "hello world")))))
+
+
+(deftest concurrent-writes
+  (let [ctx (bc/gen-context [{:pool {}
+                              :spec {:host "127.0.0.1"
+                                     :port 6379}}
+                             {:pool {}
+                              :spec {:host "127.0.0.1"
+                                     :port 6380}}
+                             {:pool {}
+                              :spec {:host "127.0.0.1"
+                                     :port 6381}}
+                             {:pool {}
+                              :spec {:host "127.0.0.1"
+                                     :port 6382}}]
+                            (gen-in-memory-backend))
+        {:keys [storage-backend ring]} ctx
+        key "foo"
+        replication-factor 4]
+    (is (nil? (bc/get ctx key
+                      :replication-factor replication-factor)))
+
+    (every? #{:stale-write :ok}
+            (map deref
+                 (map (fn [n]
+                        (future (Thread/sleep (rand-int 100))
+                                (bc/set ctx key (str "hello world" n)
+                                        :ts n
+                                        :replication-factor replication-factor)))
+                      (range 100))))
+
+    (= (bc/get ctx key
+               :replication-factor replication-factor)
+       (str "hello world" 99))))
