@@ -1,7 +1,9 @@
 # Bunshin
 
-Bunshin is a redis based multi instance cache system library that aims for high availability. The primary ideas used are consistent hashing and repair on read.
 Bunshin means clone in Japanese.
+
+Bunshin is a redis based multi instance cache system that aims for high availability. The primary ideas used are consistent hashing and repair on read.
+
 
 ### Version
 Hosted on clojars.og
@@ -13,7 +15,7 @@ Redis version > 2.6.12
 
 ### Architecture
 
-Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this timestamp can be provided by the app logic as well. As long as this number is monotonically increasing for each modification to the value it will work.
+Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. As long as this number is monotonically increasing for each modification to the value it will work.
 
 
 ### Definations
@@ -56,7 +58,7 @@ id - A monotonically increasing number used to identify unique value for a resou
                                  :port 6379}}]))
 
 
-  (get ctx "test1") ;; served either from 6379
+  (get ctx "test1") ;; served from 6379
 ```
 
 ### How it works
@@ -69,12 +71,6 @@ get - Get either returns value for specified key or nil. Nil should be treated a
 set - Set value to cache. Replication factor will decide how many nodes will have this data. Even though set
 del - Delete data from all nodes with replicated values
 
-
-
-#### Information destruction no
-
-
-### Benchmarks
 
 ### Ops
 
