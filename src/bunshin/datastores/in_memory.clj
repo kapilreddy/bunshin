@@ -1,5 +1,6 @@
 (ns bunshin.datastores.in-memory
-  (:require [bunshin.datastores.datastore :refer [BunshinDataStorage]]))
+  (:require [bunshin.datastores.datastore :refer [BunshinDataStorage]]
+            [clj-time.core :as ctc]))
 
 (defprotocol TestableServer
   (start [this server fresh?])
@@ -23,7 +24,10 @@
                                                 server-conf)]
                             r-store
                             (let [r-store (atom {})]
-                              (swap! r-stores assoc server-conf r-store)
+                              (swap! r-stores
+                                     assoc
+                                     server-conf
+                                     r-store)
                               r-store)))
         get-server-state (fn [server-conf k]
                            (get (get @store-states
@@ -34,7 +38,11 @@
       BunshinDataStorage
       (get [this server-conf k]
         (when (get-server-state server-conf :get)
-          (try (get @(get-server-conf server-conf) k)
+          (try (let [{:keys [val expire_at]} (get @(get-server-conf server-conf) k)]
+                 (if expire_at
+                   (when (ctc/after? expire_at (ctc/now))
+                     val)
+                   val))
                (catch Exception _))))
 
       (get-id-xs [this server-conf k]
@@ -46,15 +54,22 @@
                 []))
             (catch Exception _))))
 
-      (set [this server-conf val-key val id-key id]
+      (set [this server-conf val-key val id-key id ttl]
         (when (get-server-state server-conf :set)
           (try
-            (swap! (get-server-conf server-conf)
-                   (fn [v]
-                     (-> v
-                         (update-in [id-key] (fn [s]
-                                               (assoc s id 1)))
-                         (assoc val-key val))))
+            (let [d (ctc/plus (ctc/now)
+                              (ctc/seconds ttl))
+                  val-map (if (and ttl
+                                   (pos? ttl))
+                            {:val val
+                             :expire_at d}
+                            {:val val})]
+              (swap! (get-server-conf server-conf)
+                     (fn [v]
+                       (-> v
+                           (update-in [id-key] (fn [s]
+                                                 (assoc s id 1)))
+                           (assoc val-key val-map)))))
             (catch Exception _))))
 
       (prune-ids [this server-conf id-key]

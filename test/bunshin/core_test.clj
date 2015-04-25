@@ -13,9 +13,18 @@
                             (gen-in-memory-backend))]
     (is (nil? (bc/get ctx "foo")))
     (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :id 10) :stale-write))
+    (is (= (bc/set ctx "foo" "hello world" :id 9) :stale-write))
     (is (= (bc/set ctx "foo" "hello new world" :id 11) :ok))
     (is (= (bc/get ctx "foo") "hello new world"))))
+
+(deftest single-server-normal-ttl
+  (let [ctx (bc/gen-context [6379]
+                            (gen-in-memory-backend))]
+    (is (nil? (bc/get ctx "foo")))
+    (is (= (bc/set ctx "foo" "hello world" :id 10 :ttl 2) :ok))
+    (is (= (bc/get ctx "foo" :ttl 2) "hello world"))
+    (Thread/sleep 2100)
+    (is (nil? (bc/get ctx "foo" :ttl 2)))))
 
 
 (deftest multi-server-normal
@@ -23,7 +32,7 @@
                             (gen-in-memory-backend))]
     (is (nil? (bc/get ctx "foo")))
     (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :id 10) :stale-write))
+    (is (= (bc/set ctx "foo" "hello world" :id 9) :stale-write))
     (is (= (bc/set ctx "foo" "hello new world" :id 11) :ok))
     (is (= (bc/get ctx "foo") "hello new world"))))
 
@@ -39,11 +48,11 @@
                    :id 10 :replication-factor replication-factor)
            :ok))
     (is (= (bc/set ctx key "hello world"
-                   :id 10 :replication-factor replication-factor)
+                   :id 9 :replication-factor replication-factor)
            :stale-write))
 
     ;; All but one servers is running
-    (let [nodes (take replication-factor (ketama/node-seq ring key))
+    (let [nodes (#'bc/get-servers ring key replication-factor)
           nodes-to-shutdown (take (dec replication-factor) (shuffle nodes))]
       (doseq [node nodes-to-shutdown]
         (shutdown storage-backend node))
@@ -55,7 +64,7 @@
              "hello new world")))
 
     ;; All servers are running again
-    (let [nodes (take replication-factor (ketama/node-seq ring key))]
+    (let [nodes (#'bc/get-servers ring key replication-factor)]
       (doseq [node nodes]
         (start storage-backend node true))
       (is (= (bc/get ctx key
@@ -63,7 +72,7 @@
              "hello new world")))
 
     ;; No servers are running
-    (let [nodes (take replication-factor (ketama/node-seq ring key))]
+    (let [nodes (#'bc/get-servers ring key replication-factor)]
       (doseq [node nodes]
         (shutdown storage-backend node))
       (is (nil? (bc/get ctx key
@@ -83,7 +92,8 @@
            :ok))
 
     ;; All but one servers is running
-    (let [nodes (take (dec replication-factor) (ketama/node-seq ring key))]
+    (let [nodes (take (dec replication-factor)
+                      (#'bc/get-servers ring key replication-factor))]
       (doseq [node nodes]
         (shutdown storage-backend node))
       (is (= (bc/set ctx key "hello new world"
@@ -95,13 +105,14 @@
 
     ;; All servers are running again except the server running
     ;; previously
-    (let [nodes (take (dec replication-factor) (ketama/node-seq ring key))]
+    (let [nodes (#'bc/get-servers ring key (dec replication-factor))]
       (doseq [node nodes]
         (start storage-backend node true))
       (shutdown storage-backend (last (take replication-factor
                                             (ketama/node-seq ring key))))
       (is (= (bc/get ctx key
                      :replication-factor replication-factor)
+             ;; This scenario can be avoided by either using ttl
              "hello world")))))
 
 
@@ -145,7 +156,7 @@
 
     (is (nil? (bc/get ctx "foo")))
     (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :id 10) :stale-write))
+    (is (= (bc/set ctx "foo" "hello world" :id 9) :stale-write))
 
     ;; For 6379 id list will succeed but next get request will fails.
     (partial-fail mem

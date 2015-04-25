@@ -22,11 +22,15 @@
                       (redis server-conf
                              (r/zrevrange key 0 -1 "WITHSCORES")))))
 
-    (set [this server-conf val-key val id-key id]
-      (every? #(= "OK" %)
-              (redis server-conf
-                     (r/zadd id-key id 1)
-                     (r/set val-key val))))
+    (set [this server-conf val-key val id-key id ttl]
+      (if (and ttl
+               (pos? ttl))
+        (redis server-conf
+               (r/zadd id-key id 1)
+               (r/setex val-key ttl val))
+        (redis server-conf
+               (r/zadd id-key id 1)
+               (r/set val-key val))))
 
     (prune-ids [this server-conf id-key]
       (= "OK"

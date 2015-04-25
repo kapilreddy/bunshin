@@ -66,7 +66,8 @@
 (defn- set*
   [{:keys [^BunshinDataStorage storage-backend
            running-set-operations submit-to-threadpool-fn]}
-   servers-with-id key val id]
+   servers-with-id key val id
+   & {:keys [ttl]}]
   (let [val-key (gen-val-key key id)]
     (when-not (@running-set-operations val-key)
       (swap! running-set-operations conj val-key)
@@ -76,16 +77,19 @@
                  val-key
                  val
                  (gen-id-set-key key)
-                 id)
-        (when (seq id-xs)
-          (submit-to-threadpool-fn (fn []
-                                     (bdd/prune-ids storage-backend
-                                                    server
-                                                    (gen-id-set-key key))
-                                     (bdd/del storage-backend
-                                              server
-                                              (map (partial gen-val-key key)
-                                                   id-xs))))))
+                 id
+                 ttl)
+        (let [extra-ids (remove #(= (double id) %)
+                                id-xs)]
+          (when (seq extra-ids)
+            (submit-to-threadpool-fn (fn []
+                                       (bdd/prune-ids storage-backend
+                                                      server
+                                                      (gen-id-set-key key))
+                                       (bdd/del storage-backend
+                                                server
+                                                (map (partial gen-val-key key)
+                                                     extra-ids)))))))
       (swap! running-set-operations disj val-key))))
 
 
@@ -95,19 +99,21 @@
     :as ctx}
    key
    val
-   & {:keys [replication-factor id]
+   & {:keys [replication-factor id ttl]
       :or {replication-factor 2
+           ttl -1
            id (gen-id)}}]
   (let [servers (get-servers ring key replication-factor)
         servers-with-id (fetch-id-xs ctx servers key)
         fresh-id (get-fresh-id servers-with-id)]
     (if (or (nil? fresh-id)
-            (< fresh-id id))
+            (<= fresh-id id))
       (do (set* ctx
                 servers-with-id
                 key
                 val
-                id)
+                id
+                :ttl ttl)
           :ok)
       :stale-write)))
 
@@ -119,8 +125,9 @@
            submit-to-threadpool-fn]
     :as ctx}
    key
-   & {:keys [replication-factor]
-      :or {replication-factor 2}}]
+   & {:keys [replication-factor ttl]
+      :or {replication-factor 2
+           ttl -1}}]
   (let [servers (get-servers ring key replication-factor)]
     (let [servers-with-id (filter (comp seq first)
                                   (fetch-id-xs ctx servers key))]
@@ -144,6 +151,7 @@
                         key
                         fresh-data
                         :id fresh-id
+                        :ttl ttl
                         :replication-factor replication-factor))))
               fresh-data)))))))
 
@@ -196,7 +204,7 @@
   ;;; Request 2 to 127.0.0.1:6379
   ;;; zadd "bunshinids:foo" 20 1
   ;;; set "foo:20" "hello world"
-  (set ctx "foo" "hello world" :id 20) ;; :ok
+  (set ctx "foo" "hello world" :id 20 :ttl 10) ;; :ok
 
   ;;; Request 1 to 127.0.0.1:6379
   ;;; zrevrange "bunshinids:foo" 0 -1 "withscores"
