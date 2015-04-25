@@ -12,9 +12,9 @@
   (let [ctx (bc/gen-context [6379]
                             (gen-in-memory-backend))]
     (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :ts 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :ts 10) :stale-write))
-    (is (= (bc/set ctx "foo" "hello new world" :ts 11) :ok))
+    (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
+    (is (= (bc/set ctx "foo" "hello world" :id 10) :stale-write))
+    (is (= (bc/set ctx "foo" "hello new world" :id 11) :ok))
     (is (= (bc/get ctx "foo") "hello new world"))))
 
 
@@ -22,9 +22,9 @@
   (let [ctx (bc/gen-context [6379 6380 6381 6382]
                             (gen-in-memory-backend))]
     (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :ts 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :ts 10) :stale-write))
-    (is (= (bc/set ctx "foo" "hello new world" :ts 11) :ok))
+    (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
+    (is (= (bc/set ctx "foo" "hello world" :id 10) :stale-write))
+    (is (= (bc/set ctx "foo" "hello new world" :id 11) :ok))
     (is (= (bc/get ctx "foo") "hello new world"))))
 
 
@@ -36,10 +36,10 @@
         replication-factor 4]
     (is (nil? (bc/get ctx key :replication-factor replication-factor)))
     (is (= (bc/set ctx key "hello world"
-                   :ts 10 :replication-factor replication-factor)
+                   :id 10 :replication-factor replication-factor)
            :ok))
     (is (= (bc/set ctx key "hello world"
-                   :ts 10 :replication-factor replication-factor)
+                   :id 10 :replication-factor replication-factor)
            :stale-write))
 
     ;; All but one servers is running
@@ -48,7 +48,7 @@
       (doseq [node nodes-to-shutdown]
         (shutdown storage-backend node))
       (is (= (bc/set ctx key "hello new world"
-                     :ts 11 :replication-factor replication-factor)
+                     :id 11 :replication-factor replication-factor)
              :ok))
       (is (= (bc/get ctx key
                      :replication-factor replication-factor)
@@ -79,7 +79,7 @@
     (is (nil? (bc/get ctx key
                       :replication-factor replication-factor)))
     (is (= (bc/set ctx key "hello world"
-                   :ts 10 :replication-factor replication-factor)
+                   :id 10 :replication-factor replication-factor)
            :ok))
 
     ;; All but one servers is running
@@ -87,7 +87,7 @@
       (doseq [node nodes]
         (shutdown storage-backend node))
       (is (= (bc/set ctx key "hello new world"
-                     :ts 11 :replication-factor replication-factor)
+                     :id 11 :replication-factor replication-factor)
              :ok))
       (is (= (bc/get ctx key
                      :replication-factor replication-factor)
@@ -119,7 +119,7 @@
                      (map (fn [n]
                             (future (Thread/sleep (rand-int 100))
                                     (bc/set ctx key (str "hello world" n)
-                                            :ts n
+                                            :id n
                                             :replication-factor replication-factor)))
                           (range 100)))))
 
@@ -144,8 +144,8 @@
         replication-factor 4]
 
     (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :ts 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :ts 10) :stale-write))
+    (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
+    (is (= (bc/set ctx "foo" "hello world" :id 10) :stale-write))
 
     ;; For 6379 id list will succeed but next get request will fails.
     (partial-fail mem
