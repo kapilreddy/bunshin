@@ -13,7 +13,7 @@ Redis version > 2.6.12
 
 ### Architecture
 
-Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp, but this timestamp can be provided by the app logic as well. As long as this number is monotonically increasing number for each modification to the value it will work. Any new writes on same key will check
+Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this timestamp can be provided by the app logic as well. As long as this number is monotonically increasing for each modification to the value it will work.
 
 
 ### Definations
@@ -70,49 +70,6 @@ set - Set value to cache. Replication factor will decide how many nodes will hav
 del - Delete data from all nodes with replicated values
 
 
-### Scenarios
-
-###Successful write
-###Stale write
-###Successful read
-For key x of replication factor 3 there are three nodes selected [A, B, C]
-
-- Timestamp reads go to [A, B, C]
-- One node is selected from  [A, B, C] for fetching data
-
-### concurrent writes to same key and same id from same bunshin machine
-All writes after first one will be dropped. This helps reduce surge of load introduced when a new redis is added to cluster
-
-### concurrent writes to same key with different ids
-- M1 - Id reads go to [A, B, C]
-- M1 - If id is fresh then writes go to [A, B, C] writes update data and id set.
-- M2 - Id reads go to [A, B, C]
-- M2 - If id is fresh then writes go to [A, B, C] writes update data and id set.
-
-
-####Node failure / Network failure #1
-For key x of replication factor 3 there are three nodes selected [A, B, C]
-
-- Node A fails
-- Timestamp reads go to [A, B, C] and read for A fails
-- Reads go to one of [B, C]
-
-
-####Node failure / Network failure #2
-For key x of replication factor 3 there are three nodes selected [A, B, C]
-- Timestamp reads go to [A, B, C]
-- Node A fails
-- A is selected for fetching data. Fetching data fails.
-- This will be a cache miss
-
-#### Node failure / Network failure #3
-- [N1, N2, N3, N4] nodes have received data
-- [N2, N3, N4] fail
-- [N1] nodes have received data
-- [N2] recovered and [N1] failed
-- Get now will result in stale data
-This can be avoided by always adding new nodes in cluster with data
-removed. This included recovered nodes as well. Check Ops section
 
 #### Information destruction no
 
