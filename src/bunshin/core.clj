@@ -7,35 +7,35 @@
             [bunshin.datastores.datastore :as bdd]))
 
 
-(defn gen-id-set-key
+(defn- gen-id-set-key
   [key]
   (format "bunshin-ids:%s" key))
 
 
-(defn gen-val-key
+(defn- gen-val-key
   [key id]
   (format "%s:%.0f" key (double id)))
 
 
-(defn gen-id
+(defn- gen-id
   []
   (.getMillis (ct/now)))
 
 
-(defn get-servers
+(defn- get-servers
   [ring id n]
   (take n (clojure.core/set (take (* n 2)
                                   (ketama/node-seq ring id)))))
 
 
-(defn get-fresh-id
+(defn- get-fresh-id
   [server-with-id-xs]
   (first (first (first (sort-by (comp - first first)
                                 (filter (comp seq first)
                                         server-with-id-xs))))))
 
 
-(defn fetch-id
+(defn- fetch-id
   [{:keys [storage-backend]}
    server
    key]
@@ -48,7 +48,7 @@
      server]))
 
 
-(defn fetch-id-xs
+(defn- fetch-id-xs
   [{:keys [^BunshinDataStorage storage-backend
            submit-to-threadpool-fn]
     :as ctx}
@@ -63,7 +63,7 @@
                 results))))
 
 
-(defn set*
+(defn- set*
   [{:keys [^BunshinDataStorage storage-backend
            running-set-operations submit-to-threadpool-fn]}
    servers-with-id key val id]
@@ -79,13 +79,13 @@
                  id)
         (when (seq id-xs)
           (submit-to-threadpool-fn (fn []
-                                  (bdd/prune-ids storage-backend
-                                                 server
-                                                 (gen-id-set-key key))
-                                  (bdd/del storage-backend
-                                           server
-                                           (map (partial gen-val-key key)
-                                                id-xs))))))
+                                     (bdd/prune-ids storage-backend
+                                                    server
+                                                    (gen-id-set-key key))
+                                     (bdd/del storage-backend
+                                              server
+                                              (map (partial gen-val-key key)
+                                                   id-xs))))))
       (swap! running-set-operations disj val-key))))
 
 
