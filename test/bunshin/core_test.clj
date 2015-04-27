@@ -11,30 +11,30 @@
 (deftest single-server-normal
   (let [ctx (bc/gen-context [6379]
                             (gen-in-memory-backend))]
-    (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :id 9) :stale-write))
-    (is (= (bc/set ctx "foo" "hello new world" :id 11) :ok))
-    (is (= (bc/get ctx "foo") "hello new world"))))
+    (is (nil? (bc/get! ctx "foo")))
+    (is (= (bc/set! ctx "foo" "hello world" :id 10) :ok))
+    (is (= (bc/set! ctx "foo" "hello world" :id 9) :stale-write))
+    (is (= (bc/set! ctx "foo" "hello new world" :id 11) :ok))
+    (is (= (bc/get! ctx "foo") "hello new world"))))
 
 (deftest single-server-normal-ttl
   (let [ctx (bc/gen-context [6379]
                             (gen-in-memory-backend))]
-    (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :id 10 :ttl 2) :ok))
-    (is (= (bc/get ctx "foo" :ttl 2) "hello world"))
+    (is (nil? (bc/get! ctx "foo")))
+    (is (= (bc/set! ctx "foo" "hello world" :id 10 :ttl 2) :ok))
+    (is (= (bc/get! ctx "foo" :ttl 2) "hello world"))
     (Thread/sleep 2100)
-    (is (nil? (bc/get ctx "foo" :ttl 2)))))
+    (is (nil? (bc/get! ctx "foo" :ttl 2)))))
 
 
 (deftest multi-server-normal
   (let [ctx (bc/gen-context [6379 6380 6381 6382]
                             (gen-in-memory-backend))]
-    (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :id 9) :stale-write))
-    (is (= (bc/set ctx "foo" "hello new world" :id 11) :ok))
-    (is (= (bc/get ctx "foo") "hello new world"))))
+    (is (nil? (bc/get! ctx "foo")))
+    (is (= (bc/set! ctx "foo" "hello world" :id 10) :ok))
+    (is (= (bc/set! ctx "foo" "hello world" :id 9) :stale-write))
+    (is (= (bc/set! ctx "foo" "hello new world" :id 11) :ok))
+    (is (= (bc/get! ctx "foo") "hello new world"))))
 
 
 (deftest multi-server-fail-scenario-1
@@ -43,11 +43,11 @@
         {:keys [storage-backend ring]} ctx
         key "foo"
         replication-factor 4]
-    (is (nil? (bc/get ctx key :replication-factor replication-factor)))
-    (is (= (bc/set ctx key "hello world"
+    (is (nil? (bc/get! ctx key :replication-factor replication-factor)))
+    (is (= (bc/set! ctx key "hello world"
                    :id 10 :replication-factor replication-factor)
            :ok))
-    (is (= (bc/set ctx key "hello world"
+    (is (= (bc/set! ctx key "hello world"
                    :id 9 :replication-factor replication-factor)
            :stale-write))
 
@@ -56,10 +56,10 @@
           nodes-to-shutdown (take (dec replication-factor) (shuffle nodes))]
       (doseq [node nodes-to-shutdown]
         (shutdown storage-backend node))
-      (is (= (bc/set ctx key "hello new world"
+      (is (= (bc/set! ctx key "hello new world"
                      :id 11 :replication-factor replication-factor)
              :ok))
-      (is (= (bc/get ctx key
+      (is (= (bc/get! ctx key
                      :replication-factor replication-factor)
              "hello new world")))
 
@@ -67,7 +67,7 @@
     (let [nodes (#'bc/get-servers ring key replication-factor)]
       (doseq [node nodes]
         (start storage-backend node true))
-      (is (= (bc/get ctx key
+      (is (= (bc/get! ctx key
                      :replication-factor replication-factor)
              "hello new world")))
 
@@ -75,7 +75,7 @@
     (let [nodes (#'bc/get-servers ring key replication-factor)]
       (doseq [node nodes]
         (shutdown storage-backend node))
-      (is (nil? (bc/get ctx key
+      (is (nil? (bc/get! ctx key
                         :replication-factor replication-factor))))))
 
 
@@ -85,9 +85,9 @@
         {:keys [storage-backend ring]} ctx
         key "foo"
         replication-factor 4]
-    (is (nil? (bc/get ctx key
+    (is (nil? (bc/get! ctx key
                       :replication-factor replication-factor)))
-    (is (= (bc/set ctx key "hello world"
+    (is (= (bc/set! ctx key "hello world"
                    :id 10 :replication-factor replication-factor)
            :ok))
 
@@ -96,10 +96,10 @@
                       (#'bc/get-servers ring key replication-factor))]
       (doseq [node nodes]
         (shutdown storage-backend node))
-      (is (= (bc/set ctx key "hello new world"
+      (is (= (bc/set! ctx key "hello new world"
                      :id 11 :replication-factor replication-factor)
              :ok))
-      (is (= (bc/get ctx key
+      (is (= (bc/get! ctx key
                      :replication-factor replication-factor)
              "hello new world")))
 
@@ -110,7 +110,7 @@
         (start storage-backend node true))
       (shutdown storage-backend (last (take replication-factor
                                             (ketama/node-seq ring key))))
-      (is (= (bc/get ctx key
+      (is (= (bc/get! ctx key
                      :replication-factor replication-factor)
              ;; This scenario can be avoided by either using ttl
              "hello world")))))
@@ -122,19 +122,19 @@
         {:keys [storage-backend ring]} ctx
         key "foo"
         replication-factor 4]
-    (is (nil? (bc/get ctx key
+    (is (nil? (bc/get! ctx key
                       :replication-factor replication-factor)))
 
     (is (every? #{:stale-write :ok}
                 (map deref
                      (map (fn [n]
                             (future (Thread/sleep (rand-int 100))
-                                    (bc/set ctx key (str "hello world" n)
+                                    (bc/set! ctx key (str "hello world" n)
                                             :id n
                                             :replication-factor replication-factor)))
                           (range 100)))))
 
-    (is (= (bc/get ctx key
+    (is (= (bc/get! ctx key
                    :replication-factor replication-factor)
            (str "hello world" 99)))))
 
@@ -143,26 +143,26 @@
   (let [mem (gen-in-memory-backend)
         server-list [6379
                      6380]
-        ctx (bc/gen-context mem
+        ctx (bc/gen-context [6379
+                             6380]
+                            mem
                             (fn [thunk]
                               (future (thunk)))
                             ;; Always select first server to fetch data
-                            first
-                            (ketama/make-ring [6379
-                                               6380]))
+                            first)
         {:keys [storage-backend ring]} ctx
         key "foo"
         replication-factor 4]
 
-    (is (nil? (bc/get ctx "foo")))
-    (is (= (bc/set ctx "foo" "hello world" :id 10) :ok))
-    (is (= (bc/set ctx "foo" "hello world" :id 9) :stale-write))
+    (is (nil? (bc/get! ctx "foo")))
+    (is (= (bc/set! ctx "foo" "hello world" :id 10) :ok))
+    (is (= (bc/set! ctx "foo" "hello world" :id 9) :stale-write))
 
     ;; For 6379 id list will succeed but next get request will fails.
     (partial-fail mem
                   6379
                   {:get false})
-    (is (nil? (bc/get ctx "foo")))
+    (is (nil? (bc/get! ctx "foo")))
 
     (partial-fail mem
                   6379
@@ -170,4 +170,4 @@
     (partial-fail mem
                   6380
                   {:get false})
-    (is (= (bc/get ctx "foo") "hello world"))))
+    (is (= (bc/get! ctx "foo") "hello world"))))
