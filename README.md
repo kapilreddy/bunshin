@@ -67,10 +67,7 @@ Bunshin uses redis sorted set to store ids related to a set. This avoids destroy
 
 ### API
 
-get - Get either returns value for specified key or nil. Nil should be treated as miss.
-set - Set value to cache. Replication factor will decide how many nodes will have this data. Even though set
-del - Delete data from all nodes with replicated values
-
+[API Docs]
 
 ### Ops
 
