@@ -2,7 +2,7 @@
 
 Bunshin means clone in Japanese.
 
-Bunshin is a redis based multi instance cache system that aims for high availability. The primary ideas used are consistent hashing and repair on read.
+Bunshin is a redis based multi instance cache library that aims for high availability. The primary ideas used are consistent hashing and repair on read.
 
 
 ### Version

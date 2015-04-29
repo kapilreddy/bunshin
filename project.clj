@@ -1,5 +1,5 @@
 (defproject me.kapilreddy/bunshin "0.1.0-SNAPSHOT"
-  :description "Bunshin is a redis based multi instance cache system that aims for high availability."
+  :description "Bunshin is a redis based multi instance cache library that aims for high availability."
   :url "http://github.com/kapilreddy/bunshin"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
