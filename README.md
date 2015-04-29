@@ -24,7 +24,7 @@ Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashin
 
 ### Definations
 
-key - An identifier used to a resource
+key - An identifier used for a resource
 
 id - A monotonically increasing number used to identify unique value for a resource. Ids are timestamps by default but custom ids can be provided.
 
@@ -32,16 +32,20 @@ id - A monotonically increasing number used to identify unique value for a resou
 ### Getting started
 
 ```clojure
-(require '[redusa.core :as rc])
-(def ctx (gen-context [{:pool {}
+  (require '[redusa.core :as rc])
+  (def ctx (gen-context [{:pool {}
                           :spec {:host "127.0.0.1"
                                  :port 6379}}]))
+
+  ;; Even though defualt replication factor is 2. There is only one
+  ;; server in the ring. So it will be selected always
   (get  ctx "test1") ;; nil
 
   (set ctx "test1" "hello world3") ;; nil
 
   (get ctx "test1") ;; severed from 6379
 
+  ;; Cluster is resized to 4 nodes
   (def ctx (gen-context [{:pool {}
                           :spec {:host "127.0.0.1"
                                  :port 6379}}
@@ -55,9 +59,19 @@ id - A monotonically increasing number used to identify unique value for a resou
                           :spec {:host "127.0.0.1"
                                  :port 6382}}]))
 
-  (get ctx "test1")
-  ;; served either from 6379 or 6380/6381/6382
+  ;; Since the redis cache cluster reszied. Since the replication factor
+  ;; is 2. Two servers will be selected from the ring. Lets assume 6379 and
+  ;; 6380 are selected
 
+  ;; First get request will be served from 6379 since data is already
+  ;; present. A repair on read operation will be done for 6380
+  ;; asynchronously
+  (get ctx "test1")
+
+  ;; served either from 6379 or 6380
+  (get ctx "test1")
+
+  ;; Cluster is again resized and this time it has shrinked.
   (def ctx (gen-context [{:pool {}
                           :spec {:host "127.0.0.1"
                                  :port 6379}}]))
@@ -67,7 +81,7 @@ id - A monotonically increasing number used to identify unique value for a resou
 ```
 
 ### How it works
-Bunshin uses redis sorted set to store ids related to a key. This avoids destroying latest data non-determinstically.
+Bunshin uses redis sorted set to store ids related to a key. All the values for same key but different ids are stored uniquely. This avoids destroying latest data non-determinstically. Older ids are pruned on writes.
 
 
 ### API
@@ -84,7 +98,7 @@ This benchmark aims to test performance of bunshin's model of running query. The
 
 ### Ops
 
-If you are not setting ttl to your keys. Recovered nodes and new nodes in cluster should always start from a clean slate.
+Setting a ttl for keys is always a good idea but if you are not setting ttl for your keys. Any resize and recovery in redis cluster should be done with nodes clean slate.
 
 ### Libraries
 Bunshin uses these awesome libraries
@@ -108,4 +122,4 @@ Thank you @ghoseb, @vedang and @kiran_kulkarni for the feedback.
 
 Copyright © 2015 Kapil Reddy
 
-Licensed under the Eclipse Public License (the same as Clojure)
+Licensed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html) (the same as Clojure)
