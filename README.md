@@ -8,6 +8,16 @@ Bunshin is a redis based multi instance cache library that aims for high availab
 ### Version
 Bunshin is in early stage and it's not ready for production use.
 
+### Rationale
+
+Bunshin primarily aims for
+
+- High availabilty
+- Distributing query load across multiple machines
+
+Distributing query load is important because even though redis is capable of a really high number of queries per second. Network bandwidth becomes a bottleneck for a single machine cache. It is one of the factors that impact redis performance mentioned [here](http://redis.io/topics/benchmarks)
+
+
 ####Leiningen
 ```
 [me.kapilreddy/bunshin "0.1.0-SNAPSHOT"]
@@ -16,6 +26,7 @@ Bunshin is in early stage and it's not ready for production use.
 ### External Dependencies
 
 Redis version > 2.0.0
+
 
 ### How it works
 
