@@ -6,14 +6,16 @@ Bunshin is a redis based multi instance cache system that aims for high availabi
 
 
 ### Version
-Hosted on clojars.og
+Bunshin is in early stage and it's not ready for production use.
+
+Hosted on clojars.org
 0.1.0
 
 ### Dependencies
 
-Redis version > 2.6.12
+Redis version > 2.0.0
 
-### Architecture
+### How it works
 
 Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. As long as this number is monotonically increasing for each modification to the value it will work.
 
@@ -21,6 +23,7 @@ Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashin
 ### Definations
 
 key - An identifier used to a resource
+
 id - A monotonically increasing number used to identify unique value for a resource. Ids are timestamps by default but custom ids can be provided.
 
 
@@ -62,22 +65,24 @@ id - A monotonically increasing number used to identify unique value for a resou
 ```
 
 ### How it works
-Bunshin uses redis sorted set to store ids related to a set. This avoids destroying information of latest information non-determinstically.
+Bunshin uses redis sorted set to store ids related to a key. This avoids destroying latest data non-determinstically.
 
 
 ### API
 
 [API Docs]
 
+### Benchmarks
+
+![Bunshin commands benchmark](bechmarks/benchmarks.jpg?raw=true "Bunshin commands benchmark on in-memory backend")
+
+These benchmarks run on in-memory backend. In memory backend has thread/sleeps which try to emulate production latency.
+
+This benchmark aims to test performance of bunshin's model of running query. These results will vary with real redis instances but this gives a clearer idea of how bunshin will work
+
 ### Ops
 
-Recovered nodes and new nodes in cluster should always start from a
-clean slate.
-
-While shrinking cluster it is always a good idea to start fresh machine
-redis instances instead of reusing the ones already in ring. This will
-take care of problems related to reassigning id to old machines which
-might have stale data.
+If you are not setting ttl to your keys. Recovered nodes and new nodes in cluster should always start from a clean slate.
 
 ### Libraries
 Bunshin uses these awesome libraries
@@ -85,6 +90,11 @@ Bunshin uses these awesome libraries
 - https://github.com/ghoseb/ketamine
 - https://github.com/ptaoussanis/carmine
 - https://github.com/clj-time/clj-time
+
+### TODO
+- Publish benchmark results with redis machines
+- Add doc for implementing custom backend storage
+- Add metric endpoints
 
 ### Acknowledgements
 Thank you @ghoseb, @vedang and @kiran_kulkarni for the feedback.
