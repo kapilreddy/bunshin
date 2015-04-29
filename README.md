@@ -76,7 +76,7 @@ Bunshin uses redis sorted set to store ids related to a key. This avoids destroy
 
 ### Benchmarks
 
-![Bunshin commands benchmark](bechmarks/benchmarks.jpg?raw=true "Bunshin commands benchmark on in-memory backend")
+![Bunshin commands benchmark](benchmarks/benchmarks.png?raw=true "Bunshin commands benchmark on in-memory backend")
 
 These benchmarks run on in-memory backend. In memory backend has thread/sleeps which try to emulate production latency.
 
