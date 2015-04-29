@@ -1,6 +1,16 @@
 (ns bunshin.datastores.in-memory
   (:require [bunshin.datastores.datastore :refer [BunshinDataStorage]]
+            [clojure.test.check.generators :as gen]
             [clj-time.core :as ctc]))
+
+(let [sleep-seq (gen/sample (gen/frequency [[1 (gen/return 300)]
+                                            [4 (gen/return 4)]
+                                            [95 (gen/return 1)]])
+                            10000)]
+  (defn rand-sleep
+    []
+    (nth sleep-seq (rand-int (dec 10000)))))
+
 
 (defprotocol TestableServer
   (start [this server fresh?])
@@ -38,15 +48,18 @@
       BunshinDataStorage
       (get [this server-conf k]
         (when (get-server-state server-conf :get)
-          (try (let [{:keys [val expire_at]} (get @(get-server-conf server-conf) k)]
-                 (if expire_at
-                   (when (ctc/after? expire_at (ctc/now))
-                     val)
-                   val))
+          (try
+            (Thread/sleep (rand-sleep))
+            (let [{:keys [val expire_at]} (get @(get-server-conf server-conf) k)]
+              (if expire_at
+                (when (ctc/after? expire_at (ctc/now))
+                  val)
+                val))
                (catch Exception _))))
 
       (get-id-xs [this server-conf k]
         (when (get-server-state server-conf :get-id-xs)
+          (Thread/sleep (rand-sleep))
           (try
             (let [r-store (get-server-conf server-conf)]
               (if-let [xs (get @r-store k)]
@@ -57,6 +70,7 @@
       (set [this server-conf val-key val id-key id ttl]
         (when (get-server-state server-conf :set)
           (try
+            (Thread/sleep (rand-sleep))
             (let [d (ctc/plus (ctc/now)
                               (ctc/seconds ttl))
                   val-map (if (and ttl
@@ -75,6 +89,7 @@
       (prune-ids [this server-conf id-key]
         (when (get-server-state server-conf :prune-ids)
           (try
+            (Thread/sleep (rand-sleep))
             (swap!(get-server-conf server-conf)
                   update-in
                   [id-key]
@@ -85,6 +100,7 @@
       (del [this server-conf keys]
         (when (get-server-state server-conf :del)
           (try
+            (Thread/sleep (rand-sleep))
             (let [r-store (get-server-conf server-conf)]
               (doseq [key keys]
                 (swap! r-store dissoc key)))

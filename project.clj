@@ -7,5 +7,6 @@
                  [com.taoensso/carmine "2.9.2"]
                  [ketamine "1.0.0"]
                  [clj-time "0.9.0"]]
-  :profiles {:dev {:dependencies [[criterium "0.4.3"]]
+  :profiles {:dev {:dependencies [[criterium "0.4.3"]
+                                  [org.clojure/test.check "0.7.0"]]
                    :plugins [[codox "0.8.11"]]}})
