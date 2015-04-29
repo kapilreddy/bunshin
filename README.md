@@ -8,10 +8,12 @@ Bunshin is a redis based multi instance cache system that aims for high availabi
 ### Version
 Bunshin is in early stage and it's not ready for production use.
 
-Hosted on clojars.org
-0.1.0
+####Leiningen
+```
+[me.kapilreddy/bunshin "0.1.0-SNAPSHOT"]
+```
 
-### Dependencies
+### External Dependencies
 
 Redis version > 2.0.0
 
@@ -70,7 +72,7 @@ Bunshin uses redis sorted set to store ids related to a key. This avoids destroy
 
 ### API
 
-[API Docs]
+[API Docs](http://kapilreddy.github.io/bunshin/bunshin.core.html)
 
 ### Benchmarks
 
@@ -87,9 +89,11 @@ If you are not setting ttl to your keys. Recovered nodes and new nodes in cluste
 ### Libraries
 Bunshin uses these awesome libraries
 
-- https://github.com/ghoseb/ketamine
-- https://github.com/ptaoussanis/carmine
-- https://github.com/clj-time/clj-time
+- [ketamine](https://github.com/ghoseb/ketamine)
+- [carmine](https://github.com/ptaoussanis/carmine)
+- [clj-time](https://github.com/clj-time/clj-time)
+- [test.check](https://github.com/clojure/test.check)
+- [criterium](https://github.com/hugoduncan/criterium)
 
 ### TODO
 - Publish benchmark results with redis machines
