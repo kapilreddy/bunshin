@@ -2,7 +2,7 @@
 
 Bunshin means clone in Japanese.
 
-Bunshin is a redis based multi instance cache library that aims for high availability. The primary ideas used are consistent hashing and repair on read.
+Bunshin is a redis based multi instance cache library that aims for high availability, partition tolerance and eventual consistency. The primary ideas used are consistent hashing, CRDTs and repair on read.
 
 
 ### Version
@@ -30,7 +30,7 @@ Redis version > 2.0.0
 
 ### How it works
 
-Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. As long as this number is monotonically increasing for each modification to the value it will work.
+Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. Bunshin maintains G-Set CRDT for each resource key where elements are ids (timestamps). Since we only want latest value older elements are pruned.
 
 
 ### Definations
@@ -43,32 +43,32 @@ id - A monotonically increasing number used to identify unique value for a resou
 ### Getting started
 
 ```clojure
-  (require '[redusa.core :as rc])
-  (def ctx (gen-context [{:pool {}
-                          :spec {:host "127.0.0.1"
-                                 :port 6379}}]))
+  (require '[bunshin.core :as bc])
+  (def ctx (bc/gen-context [{:pool {}
+                             :spec {:host "127.0.0.1"
+                                    :port 6379}}]))
 
   ;; Even though defualt replication factor is 2. There is only one
   ;; server in the ring. So it will be selected always
-  (get  ctx "test1") ;; nil
+  (bc/get! ctx "test1") ;; nil
 
-  (set ctx "test1" "hello world3") ;; nil
+  (bc/set! ctx "test1" "hello world3") ;; nil
 
-  (get ctx "test1") ;; severed from 6379
+  (bc/get! ctx "test1") ;; severed from 6379
 
   ;; Cluster is resized to 4 nodes
-  (def ctx (gen-context [{:pool {}
-                          :spec {:host "127.0.0.1"
-                                 :port 6379}}
-                         {:pool {}
-                          :spec {:host "127.0.0.1"
-                                 :port 6380}}
-                         {:pool {}
-                          :spec {:host "127.0.0.1"
-                                 :port 6381}}
-                         {:pool {}
-                          :spec {:host "127.0.0.1"
-                                 :port 6382}}]))
+  (def ctx (bc/gen-context [{:pool {}
+                            :spec {:host "127.0.0.1"
+                                   :port 6379}}
+                            {:pool {}
+                             :spec {:host "127.0.0.1"
+                                    :port 6380}}
+                            {:pool {}
+                             :spec {:host "127.0.0.1"
+                                    :port 6381}}
+                            {:pool {}
+                             :spec {:host "127.0.0.1"
+                                    :port 6382}}]))
 
   ;; Since the redis cache cluster reszied. Since the replication factor
   ;; is 2. Two servers will be selected from the ring. Lets assume 6379 and
@@ -77,18 +77,18 @@ id - A monotonically increasing number used to identify unique value for a resou
   ;; First get request will be served from 6379 since data is already
   ;; present. A repair on read operation will be done for 6380
   ;; asynchronously
-  (get ctx "test1")
+  (bc/get! ctx "test1")
 
   ;; served either from 6379 or 6380
-  (get ctx "test1")
+  (bc/get! ctx "test1")
 
   ;; Cluster is again resized and this time it has shrinked.
-  (def ctx (gen-context [{:pool {}
-                          :spec {:host "127.0.0.1"
-                                 :port 6379}}]))
+  (def ctx (bc/gen-context [{:pool {}
+                             :spec {:host "127.0.0.1"
+                                    :port 6379}}]))
 
 
-  (get ctx "test1") ;; served from 6379
+  (bc/get! ctx "test1") ;; served from 6379
 ```
 
 ### How it works
@@ -124,9 +124,19 @@ Bunshin uses these awesome libraries
 - Publish benchmark results with redis machines
 - Add doc for implementing custom backend storage
 - Add metric endpoints
+- Partial deletes won't propogate to all nodes on repair on read.
 
 ### Acknowledgements
 Thank you @ghoseb, @vedang and @kiran_kulkarni for the feedback.
+
+### Links and papers
+These links and papers have provided inspiration and knowledge to build bunshin.
+
+- (http://antirez.com/news/33)
+- [CRDTs: Consistency without concurrency control - Letia, Mihai; Preguiça, Nuno and Shapiro, MarcMihai](http://pagesperso-systeme.lip6.fr/Marc.Shapiro/papers/RR-6956.pdf)
+- [Roshi by SoundCloud](https://github.com/soundcloud/roshi)
+- (https://github.com/aphyr/meangirls)
+
 
 
 ##License
