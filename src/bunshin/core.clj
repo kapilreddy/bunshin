@@ -242,18 +242,12 @@
 
   Delete key from all servers. Providing correct replication factor is
   important."
-  [context key & {:keys [replication-factor]
-                  :or {replication-factor 2}}]
-  (let [{:keys [storage-backend ring]} context
-        servers (get-servers ring key replication-factor)
-        servers-with-id (fetch-id-xs context servers key)]
-    (doseq [[id-xs server] servers-with-id]
-      (when (seq id-xs)
-        (bdd/del storage-backend
-                 server
-                 (concat (map (partial gen-val-key key)
-                              id-xs)
-                         (gen-id-set-key key)))))))
+  [context key & {:keys [replication-factor id]
+                  :or {replication-factor 2
+                       id (gen-id)}}]
+  (set! context key nil
+        :replication-factor replication-factor
+        :id id))
 
 
 (comment

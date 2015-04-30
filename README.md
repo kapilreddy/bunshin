@@ -124,7 +124,6 @@ Bunshin uses these awesome libraries
 - Publish benchmark results with redis machines
 - Add doc for implementing custom backend storage
 - Add metric endpoints
-- Partial deletes won't propogate to all nodes on repair on read.
 
 ### Acknowledgements
 Thank you @ghoseb, @vedang and @kiran_kulkarni for the feedback.
