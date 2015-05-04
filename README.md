@@ -2,20 +2,20 @@
 
 Bunshin means clone in Japanese.
 
-Bunshin is a redis based multi instance cache library that aims for high availability, partition tolerance and eventual consistency. The primary ideas used are consistent hashing, CRDTs and repair on read.
+Bunshin is a Redis based multi instance cache library that aims for high availability, partition tolerance and eventual consistency. The primary ideas used are consistent hashing, CRDTs and repair on read.
 
 
 ### Version
-Bunshin is in early stage and it's not ready for production use.
+Bunshin is in the early stage of development and is not ready for production use.
 
 ### Rationale
 
 Bunshin primarily aims for
 
-- High availabilty
+- High availability
 - Distributing query load across multiple machines
 
-Distributing query load is important because even though Redis is capable of a high number of queries per second, network bandwidth becomes a bottleneck for a single machine cache. It is one of the factors that impact Redis performance mentioned [here](http://redis.io/topics/benchmarks)
+Distributing query load is important because even though Redis is capable of a high number of queries per second, network bandwidth becomes a bottleneck for a single machine cache. (Refer: [here](http://redis.io/topics/benchmarks#factors-impacting-redis-performance))
 
 
 ####Leiningen
@@ -28,35 +28,39 @@ Distributing query load is important because even though Redis is capable of a h
 Redis version > 2.0.0
 
 
-### How it works
-
-Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) to decide which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. Bunshin maintains G-Set CRDT for each resource key where elements are ids (timestamps). Since we only want latest value, older elements are pruned.
-
-
-### Definations
+### Definitions
 
 key - An identifier used for a resource
 
 id - A monotonically increasing number used to identify unique value for a resource. Ids are timestamps by default but custom ids can be provided.
 
 
+### How it works
+
+1. Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) to decide which Redis nodes to use for storing cache data.
+2. It adds a server unix timestamp as `id` when storing a value, but this id can be provided by the app logic as well.
+3. It maintains a G-Set CRDT for each resource key where elements are ids (timestamps).
+4. Since we always want the latest value, older elements are pruned on write.
+
+
 ### Getting started
 
 ```clojure
   (require '[bunshin.core :as bc])
+  ;; Let's build a cache with a single redis node
   (def ctx (bc/gen-context [{:pool {}
                              :spec {:host "127.0.0.1"
                                     :port 6379}}]))
 
-  ;; Even though defualt replication factor is 2. There is only one
-  ;; server in the ring. So it will be selected always
+  ;; The default replication factor is 2. However, we've provided only one
+  ;; server in the ring. Therefore, it'll be the one that is always selected.
   (bc/get! ctx "test1") ;; nil
 
   (bc/set! ctx "test1" "hello world3") ;; nil
 
-  (bc/get! ctx "test1") ;; severed from 6379
+  (bc/get! ctx "test1") ;; "hello world3" served from 6379
 
-  ;; Cluster is resized to 4 nodes
+  ;; Let us expand the cache to spread across 4 nodes.
   (def ctx (bc/gen-context [{:pool {}
                             :spec {:host "127.0.0.1"
                                    :port 6379}}
@@ -70,19 +74,17 @@ id - A monotonically increasing number used to identify unique value for a resou
                              :spec {:host "127.0.0.1"
                                     :port 6382}}]))
 
-  ;; Since the redis cache cluster got resized, and the replication factor
-  ;; is 2, two servers will be selected from the ring. Let's assume 6379 and
-  ;; 6380 are selected
+  ;; Since the replication factor is 2, two servers will be selected from
+  ;; the ring. (Say 6379 and 6380)
 
-  ;; First get request will be served from 6379 since data is already
+  ;; First `get` request will be served from 6379 since data is already
   ;; present. A repair on read operation will be done for 6380
   ;; asynchronously
-  (bc/get! ctx "test1")
+  (bc/get! ctx "test1") ;; "hello world3" served from 6379
 
-  ;; served either from 6379 or 6380
-  (bc/get! ctx "test1")
+  (bc/get! ctx "test1") ;; served either from 6379 or 6380
 
-  ;; Cluster is again resized and this time it has shrunk.
+  ;; Cache is again re-sized and this time it has shrunk.
   (def ctx (bc/gen-context [{:pool {}
                              :spec {:host "127.0.0.1"
                                     :port 6379}}]))
@@ -90,11 +92,6 @@ id - A monotonically increasing number used to identify unique value for a resou
 
   (bc/get! ctx "test1") ;; served from 6379
 ```
-
-### How it works
-
-Bunshin uses redis sorted set to store ids related to a key. All the values for same key but different ids are stored uniquely. This avoids destroying latest data non-determinstically. Older ids are pruned on writes.
-
 
 ### API
 
@@ -106,11 +103,11 @@ Bunshin uses redis sorted set to store ids related to a key. All the values for 
 
 These benchmarks run on in-memory backend. In memory backend has Thread/sleeps which try to emulate production latency.
 
-This benchmark aims to test performance of bunshin's model of running query. These results will vary with real redis instances but this gives a clearer idea of how bunshin will work
+This benchmark aims to test performance of bunshin's model of running query. These results will vary with real Redis instances but this gives a clearer idea of how bunshin will work
 
-### Ops
+### Notes for Ops and Maintenance
 
-Setting a ttl for keys is always a good idea but if you are not setting ttl for your keys. Any resize and recovery in redis cluster should be done with nodes clean slate.
+Wherever possible, set TTL expiry for your cache data. This allows auto-cleanup of stale data. If you cannot change application logic to use TTL, then Bunshin requires that any re-size operation should use clean, empty nodes. ("clean-slate" start)
 
 ### Libraries
 Bunshin uses these awesome libraries
@@ -122,21 +119,20 @@ Bunshin uses these awesome libraries
 - [criterium](https://github.com/hugoduncan/criterium)
 
 ### TODO
-- Publish benchmark results with redis machines
+- Publish benchmark results with Redis machines
 - Add doc for implementing custom backend storage
 - Add metric endpoints
 
 ### Acknowledgements
-Thanks to @ghoseb, @vedang and @kiran_kulkarni for the feedback.
+Thanks to [@ghoseb](https://twitter.com/ghoseb), [@vedang](https://twitter.com/vedang), [@samuel](https://twitter.com/samebchase) and [@kiran](https://twitter.com/kiran_kulkarni) for the feedback.
 
 ### Links and papers
 These links and papers have provided inspiration and knowledge to build bunshin.
 
-- (http://antirez.com/news/33)
+- [http://antirez.com/news/33](http://antirez.com/news/33)
 - [CRDTs: Consistency without concurrency control - Letia, Mihai; Preguiça, Nuno and Shapiro, MarcMihai](http://pagesperso-systeme.lip6.fr/Marc.Shapiro/papers/RR-6956.pdf)
 - [Roshi by SoundCloud](https://github.com/soundcloud/roshi)
-- (https://github.com/aphyr/meangirls)
-
+- [https://github.com/aphyr/meangirls](https://github.com/aphyr/meangirls)
 
 
 ##License
