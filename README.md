@@ -15,7 +15,7 @@ Bunshin primarily aims for
 - High availabilty
 - Distributing query load across multiple machines
 
-Distributing query load is important because even though redis is capable of a really high number of queries per second. Network bandwidth becomes a bottleneck for a single machine cache. It is one of the factors that impact redis performance mentioned [here](http://redis.io/topics/benchmarks)
+Distributing query load is important because even though Redis is capable of a high number of queries per second, network bandwidth becomes a bottleneck for a single machine cache. It is one of the factors that impact Redis performance mentioned [here](http://redis.io/topics/benchmarks)
 
 
 ####Leiningen
@@ -30,7 +30,7 @@ Redis version > 2.0.0
 
 ### How it works
 
-Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) for deciding which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. Bunshin maintains G-Set CRDT for each resource key where elements are ids (timestamps). Since we only want latest value older elements are pruned.
+Bunshin uses [consistent hashing](http://en.wikipedia.org/wiki/Consistent_hashing) to decide which redis nodes to use for storing cache data. While storing a value bunshin will add a server unix timestamp as id, but this id can be provided by the app logic as well. Bunshin maintains G-Set CRDT for each resource key where elements are ids (timestamps). Since we only want latest value, older elements are pruned.
 
 
 ### Definations
@@ -70,8 +70,8 @@ id - A monotonically increasing number used to identify unique value for a resou
                              :spec {:host "127.0.0.1"
                                     :port 6382}}]))
 
-  ;; Since the redis cache cluster reszied. Since the replication factor
-  ;; is 2. Two servers will be selected from the ring. Lets assume 6379 and
+  ;; Since the redis cache cluster got resized, and the replication factor
+  ;; is 2, two servers will be selected from the ring. Let's assume 6379 and
   ;; 6380 are selected
 
   ;; First get request will be served from 6379 since data is already
@@ -82,7 +82,7 @@ id - A monotonically increasing number used to identify unique value for a resou
   ;; served either from 6379 or 6380
   (bc/get! ctx "test1")
 
-  ;; Cluster is again resized and this time it has shrinked.
+  ;; Cluster is again resized and this time it has shrunk.
   (def ctx (bc/gen-context [{:pool {}
                              :spec {:host "127.0.0.1"
                                     :port 6379}}]))
@@ -92,6 +92,7 @@ id - A monotonically increasing number used to identify unique value for a resou
 ```
 
 ### How it works
+
 Bunshin uses redis sorted set to store ids related to a key. All the values for same key but different ids are stored uniquely. This avoids destroying latest data non-determinstically. Older ids are pruned on writes.
 
 
@@ -103,7 +104,7 @@ Bunshin uses redis sorted set to store ids related to a key. All the values for 
 
 ![Bunshin commands benchmark](benchmarks/benchmarks.png?raw=true "Bunshin commands benchmark on in-memory backend")
 
-These benchmarks run on in-memory backend. In memory backend has thread/sleeps which try to emulate production latency.
+These benchmarks run on in-memory backend. In memory backend has Thread/sleeps which try to emulate production latency.
 
 This benchmark aims to test performance of bunshin's model of running query. These results will vary with real redis instances but this gives a clearer idea of how bunshin will work
 
@@ -126,7 +127,7 @@ Bunshin uses these awesome libraries
 - Add metric endpoints
 
 ### Acknowledgements
-Thank you @ghoseb, @vedang and @kiran_kulkarni for the feedback.
+Thanks to @ghoseb, @vedang and @kiran_kulkarni for the feedback.
 
 ### Links and papers
 These links and papers have provided inspiration and knowledge to build bunshin.
