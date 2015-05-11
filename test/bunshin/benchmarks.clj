@@ -16,12 +16,12 @@
 
 ;; (1 10 20 30 40 50 60 70 80 90 100)
 ;; (0.009077299428315413 0.07632339347222222 0.17755765050000002 0.25530742226666664 0.36088783383333334 0.4146356505 0.5087279088333333 0.5478025367777778 0.6030042421666667 0.6842258505000001 0.7761572588333334)
-(defn bench-set!
+(defn bench-store!
   [replication-factor]
   (let [ctx (bc/gen-context (take replication-factor (range))
                             (gen-in-memory-backend))
         n (atom 0)]
-    (cc/benchmark (bc/set! ctx "foo" "hello world"
+    (cc/benchmark (bc/store! ctx "foo" "hello world"
                            :id (swap! n inc)
                            :replication-factor replication-factor)
                   {})))
@@ -34,7 +34,7 @@
   [replication-factor]
   (let [ctx (bc/gen-context (take replication-factor (range))
                             (gen-in-memory-backend))]
-    (bc/set! ctx "foo" "hello world" :replication-factor replication-factor)
+    (bc/store! ctx "foo" "hello world" :replication-factor replication-factor)
     (cc/benchmark (bc/get! ctx "foo" :replication-factor replication-factor)
                   {})))
 
@@ -45,7 +45,7 @@
   [replication-factor]
   (let [ctx (bc/gen-context (take replication-factor (range))
                             (gen-in-memory-backend))]
-    (bc/set! ctx "foo" "hello world" :replication-factor replication-factor)
+    (bc/store! ctx "foo" "hello world" :replication-factor replication-factor)
     (let [{:keys [servers id]}
           (bc/get-with-meta! ctx "foo" :replication-factor replication-factor)]
       (cc/benchmark (bc/get-fast ctx "foo" id servers) {}))))
