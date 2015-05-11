@@ -56,7 +56,7 @@ id - A monotonically increasing number used to identify unique value for a resou
   ;; server in the ring. Therefore, it'll be the one that is always selected.
   (bc/get! ctx "test1") ;; nil
 
-  (bc/store!s ctx "test1" "hello world3") ;; nil
+  (bc/store! ctx "test1" "hello world3") ;; nil
 
   (bc/get! ctx "test1") ;; "hello world3" served from 6379
 
