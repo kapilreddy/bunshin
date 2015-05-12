@@ -44,7 +44,7 @@ id - A monotonically increasing number used to identify unique value for a resou
 
 ![Architecture](https://rawgithub.com/kapilreddy/bunshin/gh-pages/images/arch.svg "Bunshin Architecture")
 
-App servers use bunshin to request cache data from redis servers listed. Another way to use bunshin would be write a bunshin server with REST API.
+App servers use bunshin to request cache data from redis servers listed. Another way to use bunshin would be write a bunshin server with REST API. More details found [here](https://github.com/kapilreddy/bunshin/wiki/Architecture)
 
 ### Getting started
 
