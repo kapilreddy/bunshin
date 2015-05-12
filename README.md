@@ -42,6 +42,9 @@ id - A monotonically increasing number used to identify unique value for a resou
 3. It maintains a G-Set CRDT for each resource key where elements are ids (timestamps).
 4. Since we always want the latest value, older elements are pruned on write.
 
+![Architecture](https://rawgithub.com/kapilreddy/bunshin/gh-pages/images/arch.svg "Bunshin Architecture")
+
+App servers use bunshin to request cache data from redis servers listed. Another way to use bunshin would be write a bunshin server with REST API.
 
 ### Getting started
 
