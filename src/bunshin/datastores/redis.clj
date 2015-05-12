@@ -17,7 +17,7 @@
              (r/get key)))
 
     (get-id-xs [this server-conf key]
-      (map second
+      (map first
            (partition 2
                       (redis server-conf
                              (r/zrevrange key 0 -1 "WITHSCORES")))))
@@ -26,7 +26,7 @@
       (if (and ttl
                (pos? ttl))
         (redis server-conf
-               (r/zadd id-key id 1)
+               (r/zadd id-key id id)
                (r/setex val-key ttl val))
         (redis server-conf
                (r/zadd id-key id 1)
